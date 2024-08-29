@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Last.fm Music Overlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #00000000; /* Sicherstellen, dass der Hintergrund dunkel ist */
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: "DM Sans", sans-serif;
+      }
+
+      #overlay {
+        position: relative;
+        max-width: 500px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease-in-out;
+        opacity: 0;
+        transform: translateY(20px) scale(0.8); /* Kombinierte Transformation */
+      }
+
+      #overlay.show {
+        opacity: 1;
+        transform: translateY(0) scale(1); /* Kombinierte Transformation */
+      }
+
+      #overlay .background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        filter: blur(1rem); /* Hintergrund unscharf machen */
+        z-index: -1; /* Hintergrundbild hinter dem Overlay-Inhalt */
+        border-radius: inherit; /* Rundungen vom Eltern-Element übernehmen */
+      }
+
+      #overlay .content {
+        position: relative;
+        z-index: 10; /* Sicherstellen, dass der Inhalt über dem verschwommenen Hintergrund liegt */
+      }
+
+      .track-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .track-info img {
+        border-radius: 0.5rem;
+        width: 100px; /* Größe der Album-Cover */
+        height: 100px; /* Größe der Album-Cover */
+      }
+
+      .track-info div {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+
+      .track-title {
+        font-weight: 800;
+        font-size: 1.75rem;
+      }
+
+      .track-data {
+        color: #ffffff;
+        font-size: 1.2rem;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">
+      <div class="background"></div>
+      <!-- Hintergrundbild-Container -->
+      <div class="content">
+        <!-- Hier wird der Inhalt dynamisch eingefügt -->
+      </div>
+    </div>
+
+    <script>
+      async function fetchLastFMData(username) {
+        const apiKey = "4430ab1cdf37bf3c3c252ea708fb06c9"; // Dein Last.fm API Key
+        const url = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${username}&api_key=${apiKey}&format=json&limit=1`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+        return data.recenttracks.track[0];
+      }
+
+      async function updateOverlay() {
+        const params = new URLSearchParams(window.location.search);
+        const username = params.get("username");
+        const debug = params.get("debug") === "true";
+
+        if (!username) {
+          document.querySelector(".content").innerHTML =
+            "Username is required!";
+          return;
+        }
+
+        try {
+          const track = await fetchLastFMData(username);
+          const overlay = document.getElementById("overlay");
+          const background = overlay.querySelector(".background");
+          const coverUrl = track.image[2]["#text"];
+
+          // Set the background image for the background div
+          background.style.backgroundImage = `url(${coverUrl})`;
+
+          // Set the content for the overlay
+          document.querySelector(".content").innerHTML = `
+          <div class="track-info">
+            <img src="${coverUrl}" alt="Cover">
+            <div>
+              <p class="track-title">${track.name}</p>
+              <p class="track-data">${track.artist["#text"]} - ${track.album["#text"]}</p>
+            </div>
+          </div>
+        `;
+
+          if (debug) {
+            console.log("Last.fm Track Data:", track);
+          }
+
+          // Show the overlay with a slide-up effect only on the first load
+          if (!overlay.classList.contains("show")) {
+            setTimeout(() => {
+              overlay.classList.add("show");
+            }, 100);
+          }
+
+          // Set a timeout for the next update (5 seconds)
+          setTimeout(updateOverlay, 5000);
+        } catch (error) {
+          console.error("Error fetching Last.fm data:", error);
+          document.querySelector(".content").innerHTML =
+            "Error fetching Last.fm data!";
+        }
+      }
+
+      // Initialisierung und Einblende-Animation
+      document.addEventListener("DOMContentLoaded", () => {
+        updateOverlay();
+      });
+    </script>
+  </body>
+</html>
